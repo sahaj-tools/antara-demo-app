@@ -1,0 +1,158 @@
+/*
+  Why this exists:
+  Shared, minimal styling for all Antara demo states without adding heavy UI frameworks.
+  What Antara expects:
+  Nothing specific at the CSS layer, but the UI should clearly communicate auth and permission states.
+  Alternatives:
+  Teams can replace this with Tailwind, CSS Modules, or design-system tokens.
+*/
+
+:root {
+  --bg: #f3f6fb;
+  --surface: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --primary: #1d4ed8;
+  --primary-contrast: #ffffff;
+  --border: #e5e7eb;
+  --error: #b91c1c;
+  --success: #047857;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+.container {
+  margin: 0 auto;
+  max-width: 760px;
+  padding: 2.5rem 1rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.eyebrow {
+  color: var(--primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.muted {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.button {
+  background: var(--primary);
+  border: none;
+  border-radius: 8px;
+  color: var(--primary-contrast);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.button.secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.stack {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+}
+
+.identityGrid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.identityGrid dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.identityGrid dd {
+  font-weight: 600;
+  margin: 0.2rem 0 0;
+}
+
+.list {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  padding: 0.7rem;
+}
+
+.alert {
+  border-radius: 8px;
+  font-size: 0.95rem;
+  padding: 0.7rem 0.8rem;
+}
+
+.alert.success {
+  background: #ecfdf5;
+  color: var(--success);
+}
+
+.alert.error {
+  background: #fef2f2;
+  color: var(--error);
+}
+
+.link {
+  color: var(--primary);
+  font-weight: 600;
+}
