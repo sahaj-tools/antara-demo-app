@@ -21,7 +21,10 @@ const getRequiredPublicEnv = (
 ) => {
   const value = process.env[key];
   if (!value) {
-    throw new Error(`Missing ${key}. Add it to .env.local.`);
+    throw new Error(
+      `Missing ${key}. For local dev, add it to .env.local. For production (e.g. Cloudflare Pages), ` +
+        `set it under Environment variables and run a new build—NEXT_PUBLIC_* values are baked in at compile time.`,
+    );
   }
   return value;
 };

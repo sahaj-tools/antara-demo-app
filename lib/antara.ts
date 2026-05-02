@@ -40,7 +40,8 @@ const getApiBase = () => {
   const value = process.env.NEXT_PUBLIC_API_BASE;
   if (!value) {
     throw new Error(
-      "Missing NEXT_PUBLIC_API_BASE. Add it to .env.local before running the app.",
+      "Missing NEXT_PUBLIC_API_BASE. For local dev use .env.local; for production set it on your host before " +
+        '"next build" so it is inlined into the client bundle, then redeploy.',
     );
   }
   return value.replace(/\/$/, "");
