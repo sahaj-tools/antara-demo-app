@@ -58,6 +58,27 @@ npm run dev
 
 4. Open [http://localhost:3000](http://localhost:3000).
 
+### Cloudflare Pages (production)
+
+This project uses **static HTML export** (`output: "export"` in `next.config.ts`) so Cloudflare Pages can serve it like any static site.
+
+In your Pages project **Settings → Build**:
+
+| Setting | Value |
+|--------|--------|
+| Build command | `npm run build` |
+| Build output directory | **`out`** (not `.next`) |
+
+Using `.next` as the output directory will not produce a working site on Pages, because Pages serves static files from that folder; the deployable export lives in **`out/`**.
+
+Set **Variables and Secrets** (same names as local):
+
+- `NEXT_PUBLIC_API_BASE`
+- `NEXT_PUBLIC_APP_ID`
+- `NEXT_PUBLIC_REDIRECT_URI` — must exactly match your live callback URL (e.g. `https://demo.useantara.com/dashboard`) and the redirect URI configured in Antara.
+
+After changing build settings, trigger a new deployment.
+
 ## 4) Environment Variables
 
 - `NEXT_PUBLIC_API_BASE`: Antara API base URL.
