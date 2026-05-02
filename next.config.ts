@@ -16,9 +16,9 @@ const requiredPublicEnv = [
 for (const key of requiredPublicEnv) {
   if (!process.env[key]) {
     throw new Error(
-      `${key} must be set when running "next build". Next.js inlines NEXT_PUBLIC_* at build time; ` +
-        `setting variables only in the runtime UI (without rebuilding) leaves them undefined in the browser bundle. ` +
-        `Add it in Cloudflare Pages → Settings → Variables (Production and Preview if you use preview URLs), then redeploy.`,
+      `${key} must be set when running "next build". Use \`npm run build\` (not \`next build\` alone) so ` +
+        `scripts/inject-public-env.mjs runs first and writes string literals into lib/generated-public-env.ts. ` +
+        `Set variables in Cloudflare Pages (or .env.local) before the build.`,
     );
   }
 }

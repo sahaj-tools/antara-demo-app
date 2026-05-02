@@ -9,6 +9,8 @@
  * Teams can switch to a backend proxy service to avoid exposing token exchange in the browser.
  */
 
+import { getApiBaseUrl } from "@/lib/public-env";
+
 export type AntaraIdentity = {
   displayName: string;
   slug: string;
@@ -36,17 +38,6 @@ export class AntaraApiError extends Error {
   }
 }
 
-const getApiBase = () => {
-  const value = process.env.NEXT_PUBLIC_API_BASE;
-  if (!value) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_API_BASE. For local dev use .env.local; for production set it on your host before " +
-        '"next build" so it is inlined into the client bundle, then redeploy.',
-    );
-  }
-  return value.replace(/\/$/, "");
-};
-
 const parseErrorMessage = async (response: Response) => {
   const fallback = "Antara API request failed. Please try again.";
   try {
@@ -58,7 +49,7 @@ const parseErrorMessage = async (response: Response) => {
 };
 
 export const exchangeCode = async (code: string): Promise<AntaraSession> => {
-  const response = await fetch(`${getApiBase()}/auth/exchange-code`, {
+  const response = await fetch(`${getApiBaseUrl()}/auth/exchange-code`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -82,7 +73,7 @@ export const sendMessage = async ({
   to: string;
   message: string;
 }) => {
-  const response = await fetch(`${getApiBase()}/app/v1/messages`, {
+  const response = await fetch(`${getApiBaseUrl()}/app/v1/messages`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

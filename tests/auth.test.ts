@@ -15,6 +15,8 @@ import { clearInMemorySession, exchangeCodeForSession } from "@/lib/auth";
 describe("auth exchange", () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_API_BASE = "https://api.useantara.com";
+    process.env.NEXT_PUBLIC_APP_ID = "test-app-id";
+    process.env.NEXT_PUBLIC_REDIRECT_URI = "http://localhost:3000/dashboard";
     clearInMemorySession();
     vi.stubGlobal("fetch", vi.fn());
   });

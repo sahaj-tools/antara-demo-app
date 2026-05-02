@@ -67,9 +67,11 @@ In your Pages project **Settings → Build**:
 | Setting | Value |
 |--------|--------|
 | Build command | `npm run build` |
-| Build output directory | **`out`** (not `.next`) |
+| Build output directory | **`out`** (not `.next`, not `/out`) |
 
 Using `.next` as the output directory will not produce a working site on Pages, because Pages serves static files from that folder; the deployable export lives in **`out/`**.
+
+**Why `npm run build`:** The script runs `node scripts/inject-public-env.mjs` first. That reads `NEXT_PUBLIC_*` from the environment and writes `lib/generated-public-env.ts` with **plain string literals**. The app imports that file so the values always appear in the static JS bundle. Relying only on `process.env.NEXT_PUBLIC_*` inside components is unreliable with some static-export / Turbopack builds (values can be missing in the browser even when CI env is set). Do **not** run `next build` alone in production CI.
 
 Set **Variables and Secrets** (same names as local):
 

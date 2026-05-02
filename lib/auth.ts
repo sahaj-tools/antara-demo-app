@@ -1,4 +1,5 @@
 import { AntaraApiError, AntaraSession, exchangeCode } from "@/lib/antara";
+import { getRequiredPublicEnv } from "@/lib/public-env";
 
 /**
  * Why this exists:
@@ -12,22 +13,6 @@ import { AntaraApiError, AntaraSession, exchangeCode } from "@/lib/antara";
  */
 
 let inMemorySession: AntaraSession | null = null;
-
-const getRequiredPublicEnv = (
-  key:
-    | "NEXT_PUBLIC_API_BASE"
-    | "NEXT_PUBLIC_APP_ID"
-    | "NEXT_PUBLIC_REDIRECT_URI",
-) => {
-  const value = process.env[key];
-  if (!value) {
-    throw new Error(
-      `Missing ${key}. For local dev, add it to .env.local. For production (e.g. Cloudflare Pages), ` +
-        `set it under Environment variables and run a new build—NEXT_PUBLIC_* values are baked in at compile time.`,
-    );
-  }
-  return value;
-};
 
 export const getAuthorizeUrl = () => {
   const apiBase = getRequiredPublicEnv("NEXT_PUBLIC_API_BASE").replace(/\/$/, "");
