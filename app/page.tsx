@@ -5,7 +5,7 @@ import { LoginButton } from "@/components/LoginButton";
  * This is the public entry page for developers evaluating Antara OAuth.
  *
  * What Antara expects:
- * We direct users to Antara's authorize endpoint with app_id, redirect_uri, and response_type=code.
+ * Redirect to /oauth/authorize with client_id, redirect_uri, response_type=code, PKCE, and state.
  *
  * Alternatives:
  * For larger apps, this page can include marketing copy or route users through a backend-initiated login flow.
@@ -18,7 +18,7 @@ export default function Home() {
         <h1>Demo: External Identity Provider with Antara OAuth</h1>
         <p className="muted">
           This app demonstrates login, identity rendering, permissions display,
-          and secure message sending using the Antara API.
+          token introspection, and the app messaging API contract (aat_ on the server).
         </p>
         <LoginButton />
       </section>

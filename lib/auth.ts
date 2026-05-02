@@ -1,41 +1,57 @@
-import { AntaraApiError, AntaraSession, exchangeCode } from "@/lib/antara";
+import {
+  AntaraApiError,
+  AntaraSession,
+  exchangeOAuthAuthorizationCode,
+} from "@/lib/antara";
 import { getRequiredPublicEnv } from "@/lib/public-env";
 
 /**
- * Why this exists:
- * This file holds auth/session helpers that keep security decisions explicit and reusable.
- *
- * What Antara expects:
- * The app sends users to /oauth/authorize and later exchanges the returned code exactly once.
- *
- * Alternatives:
- * A backend session layer can own token storage and user mapping for stricter production controls.
+ * Auth helpers: OAuth authorize URL construction and in-memory session after code exchange.
+ * Antara GET /oauth/authorize expects: client_id, redirect_uri, response_type=code, state,
+ * code_challenge, code_challenge_method=S256, optional scope.
  */
 
 let inMemorySession: AntaraSession | null = null;
 
-export const getAuthorizeUrl = () => {
+/** Space-separated scopes for consent (subset of Antara allow-list). */
+const DEFAULT_OAUTH_SCOPE = "identity.read messages.send profile.basic";
+
+export type AuthorizeParams = {
+  state: string;
+  codeChallenge: string;
+};
+
+export const buildOAuthAuthorizeUrl = ({ state, codeChallenge }: AuthorizeParams) => {
   const apiBase = getRequiredPublicEnv("NEXT_PUBLIC_API_BASE").replace(/\/$/, "");
-  const appId = getRequiredPublicEnv("NEXT_PUBLIC_APP_ID");
+  const clientId = getRequiredPublicEnv("NEXT_PUBLIC_APP_ID");
   const redirectUri = getRequiredPublicEnv("NEXT_PUBLIC_REDIRECT_URI");
 
   const params = new URLSearchParams({
-    app_id: appId,
+    client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
+    state,
+    code_challenge: codeChallenge,
+    code_challenge_method: "S256",
+    scope: DEFAULT_OAUTH_SCOPE,
   });
 
   return `${apiBase}/oauth/authorize?${params.toString()}`;
 };
 
-export const exchangeCodeForSession = async (code: string) => {
+export const exchangeCodeForSession = async (
+  code: string,
+  codeVerifier: string,
+): Promise<AntaraSession> => {
   if (!code) {
     throw new Error("Authorization code is missing from callback URL.");
   }
+  if (!codeVerifier) {
+    throw new Error("PKCE verifier missing — start login from this app’s home page.");
+  }
 
   try {
-    // We keep tokens in memory only. Alternative: issue HttpOnly cookies from a backend proxy.
-    const session = await exchangeCode(code);
+    const session = await exchangeOAuthAuthorizationCode({ code, codeVerifier });
     inMemorySession = session;
     return session;
   } catch (error) {
@@ -43,7 +59,7 @@ export const exchangeCodeForSession = async (code: string) => {
       throw new Error("The session is invalid or expired. Please log in again.");
     }
     if (error instanceof AntaraApiError && error.status === 400) {
-      throw new Error("The authorization code is invalid. Please retry login.");
+      throw new Error("The authorization code is invalid or was already used. Please retry login.");
     }
     throw error instanceof Error
       ? error

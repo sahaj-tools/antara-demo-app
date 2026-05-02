@@ -1,15 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { sendMessage } from "@/lib/antara";
+import { sendAppMessage } from "@/lib/antara";
 
 /**
- * Why this exists:
- * This validates message delivery calls and failure paths against Antara API contracts.
- *
- * What Antara expects:
- * /app/v1/messages must receive bearer auth and JSON fields: to + message.
- *
- * Alternatives:
- * Backend integration tests can assert retry and queueing logic for production systems.
+ * Validates POST /app/v1/messages: Bearer token, Idempotency-Key, body { slug, body }.
  */
 
 describe("antara messaging api", () => {
@@ -25,32 +18,34 @@ describe("antara messaging api", () => {
 
   it("sends message successfully", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ id: "message-1", status: "queued" }), {
-        status: 200,
+      new Response(JSON.stringify({ messageId: "message-1", status: "queued" }), {
+        status: 202,
       }),
     );
 
-    const response = await sendMessage({
-      accessToken: "token-abc",
-      to: "ada@antara",
-      message: "Hello from demo app",
+    const response = await sendAppMessage({
+      accessToken: "aat_token",
+      slug: "ada@antara",
+      body: "Hello from demo app",
     });
 
-    expect(response).toEqual({ id: "message-1", status: "queued" });
+    expect(response).toEqual({ messageId: "message-1", status: "queued" });
     expect(fetch).toHaveBeenCalledTimes(1);
+    const init = vi.mocked(fetch).mock.calls[0]?.[1] as RequestInit;
+    expect(init?.headers).toBeDefined();
   });
 
   it("handles api failure", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ message: "Session expired" }), { status: 401 }),
+      new Response(JSON.stringify({ message: "Invalid token" }), { status: 401 }),
     );
 
     await expect(
-      sendMessage({
+      sendAppMessage({
         accessToken: "expired-token",
-        to: "ada@antara",
-        message: "Hello from demo app",
+        slug: "ada@antara",
+        body: "Hello from demo app",
       }),
-    ).rejects.toThrow("Session expired");
+    ).rejects.toThrow("Invalid token");
   });
 });

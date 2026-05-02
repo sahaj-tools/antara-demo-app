@@ -6,9 +6,10 @@ This project is a minimal but complete reference implementation for integrating 
 
 Antara is an identity and permissions platform. In this demo, Antara is the OAuth provider that:
 
-- authenticates the user
-- returns identity and granted permissions
-- allows authenticated app actions (sending a message)
+- authenticates the user (authorization code + **PKCE**)
+- returns identity and **granted scopes** (shown as permissions)
+- demonstrates **token introspection** with the browser OAuth token (`oit_`)
+- shows how **app messaging** is called (same API your server would use with an **`aat_`** token)
 
 ## 2) How Login Works (diagram style)
 
@@ -16,23 +17,29 @@ Antara is an identity and permissions platform. In this demo, Antara is the OAut
 [User clicks "Login with Antara"]
           |
           v
-[Browser redirects to Antara /oauth/authorize]
+[Demo generates PKCE verifier + state; stores verifier in sessionStorage]
           |
           v
-[Antara prompts and approves access]
+[Browser redirects to API GET /oauth/authorize?client_id=…&redirect_uri=…&response_type=code
+ &state=…&code_challenge=…&code_challenge_method=S256&scope=…]
           |
           v
-[Antara redirects back to /dashboard?code=...]
+[302 to useantara.com/oauth/consent — user signs in and approves]
           |
           v
-[Demo app calls POST /auth/exchange-code]
+[Browser returns to /dashboard?code=…&state=…]
           |
           v
-[App stores access token + identity in memory]
+[Demo checks state matches stored value, then POST /oauth/token with code_verifier]
           |
           v
-[Dashboard renders identity, permissions, and Message form]
+[App stores OAuth identity token (oit_) + user in memory]
+          |
+          v
+[Dashboard: identity, introspect demo, messaging request shape demo]
 ```
+
+**Note:** `POST /auth/exchange-code` is for Antara’s **portal / magic-link** handoff (signed codes), **not** for third-party OAuth authorization codes. Integrators must use **`POST /oauth/token`** with PKCE for OAuth.
 
 ## 3) Setup Steps
 
@@ -42,21 +49,26 @@ Antara is an identity and permissions platform. In this demo, Antara is the OAut
 npm install
 ```
 
-2. Create or update `.env.local`:
+2. Register an app in Antara (admin / control plane). You need:
+
+   - **Client id** — UUID, same value as `NEXT_PUBLIC_APP_ID`
+   - **Redirect URI(s)** — exact match (scheme, host, path, no stray trailing slash)
+
+3. Create or update `.env.local`:
 
 ```bash
 NEXT_PUBLIC_API_BASE=https://api.useantara.com
-NEXT_PUBLIC_APP_ID=<your_app_id>
+NEXT_PUBLIC_APP_ID=<your_app_uuid_client_id>
 NEXT_PUBLIC_REDIRECT_URI=http://localhost:3000/dashboard
 ```
 
-3. Start the app:
+4. Start the app:
 
 ```bash
 npm run dev
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000).
+5. Open [http://localhost:3000](http://localhost:3000).
 
 ### Cloudflare Pages (production)
 
@@ -83,67 +95,91 @@ After changing build settings, trigger a new deployment.
 
 ## 4) Environment Variables
 
-- `NEXT_PUBLIC_API_BASE`: Antara API base URL.
-- `NEXT_PUBLIC_APP_ID`: App identifier registered with Antara.
-- `NEXT_PUBLIC_REDIRECT_URI`: Callback URL configured in Antara app settings.
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_API_BASE` | Antara **API** host (e.g. `https://api.useantara.com`). OAuth and token endpoints live here—not the marketing site origin. |
+| `NEXT_PUBLIC_APP_ID` | OAuth **client_id** (your app’s UUID). |
+| `NEXT_PUBLIC_REDIRECT_URI` | Registered callback URL for this deployment. |
 
 ## 5) API Flow Explanation
 
 ### Login initiation
 
-- `GET ${NEXT_PUBLIC_API_BASE}/oauth/authorize`
-- query params:
-  - `app_id`
-  - `redirect_uri`
-  - `response_type=code`
+`GET ${NEXT_PUBLIC_API_BASE}/oauth/authorize`
+
+Query parameters (this demo sends all required fields):
+
+| Parameter | Value |
+|-----------|--------|
+| `client_id` | Same as `NEXT_PUBLIC_APP_ID` |
+| `redirect_uri` | Same as env (must match registration **exactly**) |
+| `response_type` | `code` |
+| `state` | Random string (CSRF protection) |
+| `code_challenge` | PKCE S256 challenge |
+| `code_challenge_method` | `S256` |
+| `scope` | Space-separated scopes (demo defaults to `identity.read messages.send profile.basic`) |
+
+The browser is then redirected to **`https://useantara.com/oauth/consent`** (consent UI).
 
 ### Code exchange
 
-- `POST ${NEXT_PUBLIC_API_BASE}/auth/exchange-code`
-- body:
+`POST ${NEXT_PUBLIC_API_BASE}/oauth/token`
 
 ```json
 {
-  "code": "<authorization_code>"
+  "grant_type": "authorization_code",
+  "code": "<authorization_code>",
+  "redirect_uri": "<same as authorize>",
+  "client_id": "<app uuid>",
+  "code_verifier": "<pkce_verifier_from_login_step>"
 }
 ```
 
-### Authenticated action (send message)
+Success body is Antara’s envelope `{ data: { accessToken, scopes, user, … }, meta }`. The access token for this flow is an **OAuth identity token** (`oit_…`).
 
-- `POST ${NEXT_PUBLIC_API_BASE}/app/v1/messages`
-- header:
-  - `Authorization: Bearer <access_token>`
-- body:
+### Introspection (works with `oit_` in the browser)
+
+`POST ${NEXT_PUBLIC_API_BASE}/auth/introspect`
 
 ```json
 {
-  "to": "user.slug",
-  "message": "Hello from demo app"
+  "token": "<access_token>"
 }
 ```
+
+### App messaging (requires **`aat_`**, not `oit_`)
+
+`POST ${NEXT_PUBLIC_API_BASE}/app/v1/messages`
+
+- Header: `Authorization: Bearer <aat_app_access_token>`
+- Header: `Idempotency-Key: <uuid>` (required)
+- JSON body:
+
+```json
+{
+  "slug": "recipient.slug@domain",
+  "body": "Plain text message"
+}
+```
+
+The demo may call this endpoint with the **OAuth browser token** to show the real API contract; the API is routed for **app access tokens** (`aat_`). Use your **backend** with a stored app credential to send messages in production.
 
 ## 6) Security Notes
 
-- No token logging:
-  - The app never logs access tokens to console.
-- Why no `localStorage`:
-  - Tokens are kept only in memory to reduce exposure from persistent browser storage.
-- Token handling:
-  - Access token is set in React state and process memory.
-  - Logout clears memory and redirects to home.
-- Validation:
-  - Dashboard validates that `code` exists before exchanging.
-  - Error messages are user-friendly for invalid code, expired session, and general API failures.
+- No token logging: the app does not log access tokens to the console in production paths.
+- **PKCE** is required by Antara for public clients; the verifier never appears in the URL (only in `sessionStorage` until the callback).
+- **State** parameter: validated against the value stored at login start.
+- Tokens are kept in **memory** after exchange (not `localStorage`) to reduce XSS persistence risk.
+- Logout clears memory and redirects home.
+- For production, consider exchanging the code **on your server** and issuing your own session cookies.
 
 ## 7) Extending This App
 
 The code includes comments describing extension points. Typical next steps:
 
-- Store users in your DB after successful code exchange.
-- Map Antara identity (`slug`, `trustLevel`, permissions) to your internal user record.
-- Customize permission display and policy checks for your product domain.
-- Add role-based authorization gates in UI and APIs.
-- Move token exchange/message calls to backend endpoints for stricter security posture.
+- Exchange the code on your backend; store sessions in HttpOnly cookies.
+- Map Antara identity (`primarySlug`, `trustLevel`, scopes) to your internal user record.
+- Obtain **`aat_`** via Antara’s app-token endpoints and call `/app/v1/messages` from the server only.
 
 ## Test Commands
 
@@ -158,3 +194,7 @@ Run tests:
 ```bash
 npm run test
 ```
+
+## Further reading
+
+- [`docs/integration-checklist.md`](docs/integration-checklist.md) — integrator checklist aligned with Antara API worker behavior.

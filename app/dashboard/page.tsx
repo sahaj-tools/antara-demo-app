@@ -6,7 +6,7 @@ import { DashboardClient } from "@/components/DashboardClient";
  * This route demonstrates the full Antara callback lifecycle and authenticated app behavior.
  *
  * What Antara expects:
- * Antara redirects with ?code=, and that code must be exchanged via POST /auth/exchange-code.
+ * Antara redirects with ?code= and ?state=; the app exchanges via POST /oauth/token with PKCE code_verifier.
  *
  * Alternatives:
  * Production deployments often perform this exchange server-side and issue HttpOnly cookies.

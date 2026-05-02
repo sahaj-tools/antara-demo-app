@@ -1,17 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearInMemorySession, exchangeCodeForSession } from "@/lib/auth";
 
-/**
- * Why this exists:
- * These tests verify Antara code-exchange behavior and important error handling.
- *
- * What Antara expects:
- * Valid code returns session payload; invalid/expired flows return API errors that we map to user-safe messages.
- *
- * Alternatives:
- * End-to-end browser tests can be added for callback URL behavior.
- */
-
 describe("auth exchange", () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_API_BASE = "https://api.useantara.com";
@@ -27,23 +16,33 @@ describe("auth exchange", () => {
     clearInMemorySession();
   });
 
-  it("handles valid code", async () => {
-    const fakeSession = {
-      accessToken: "token-123",
-      user: {
-        displayName: "Ada Lovelace",
-        slug: "ada@antara",
-        trustLevel: "high",
-        permissions: ["identity.read", "messages.send"],
+  it("handles valid code with OAuth token envelope", async () => {
+    const apiBody = {
+      data: {
+        accessToken: "oit_abc123",
+        tokenType: "Bearer" as const,
+        expiresAt: 1,
+        expiresIn: 3600,
+        scopes: ["identity.read", "messages.send"],
+        user: {
+          id: "u1",
+          primarySlug: "ada@antara",
+          displayName: "Ada Lovelace",
+          trustLevel: "high",
+          verified: true,
+        },
       },
+      meta: { requestId: "r1", issuedAt: 1 },
     };
 
     vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(JSON.stringify(fakeSession), { status: 200 }),
+      new Response(JSON.stringify(apiBody), { status: 200 }),
     );
 
-    const session = await exchangeCodeForSession("valid-code");
-    expect(session).toEqual(fakeSession);
+    const session = await exchangeCodeForSession("valid-code", "verifier");
+    expect(session.accessToken).toBe("oit_abc123");
+    expect(session.user.slug).toBe("ada@antara");
+    expect(session.user.permissions).toEqual(["identity.read", "messages.send"]);
   });
 
   it("handles invalid code", async () => {
@@ -51,14 +50,18 @@ describe("auth exchange", () => {
       new Response(JSON.stringify({ message: "Invalid code" }), { status: 400 }),
     );
 
-    await expect(exchangeCodeForSession("bad-code")).rejects.toThrow(
-      "The authorization code is invalid. Please retry login.",
+    await expect(exchangeCodeForSession("bad-code", "v")).rejects.toThrow(
+      "The authorization code is invalid or was already used. Please retry login.",
     );
   });
 
   it("handles missing code", async () => {
-    await expect(exchangeCodeForSession("")).rejects.toThrow(
+    await expect(exchangeCodeForSession("", "v")).rejects.toThrow(
       "Authorization code is missing from callback URL.",
     );
+  });
+
+  it("handles missing verifier", async () => {
+    await expect(exchangeCodeForSession("code", "")).rejects.toThrow("PKCE verifier missing");
   });
 });
