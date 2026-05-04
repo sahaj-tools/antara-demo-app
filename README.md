@@ -41,6 +41,15 @@ Antara is an identity and permissions platform. In this demo, Antara is the OAut
 
 **Note:** `POST /auth/exchange-code` is for Antara’s **portal / magic-link** handoff (signed codes), **not** for third-party OAuth authorization codes. Integrators must use **`POST /oauth/token`** with PKCE for OAuth.
 
+### Consent screen and authorize URL
+
+- The first hop must be a **full browser navigation** to **`GET {API}/oauth/authorize?…`** (not `fetch` without `Accept: text/html`), so the worker can **302** to **`https://useantara.com/oauth/consent`** with the **same query string**.
+- The consent app then calls **`GET {API}/oauth/authorize?…`** with **`Accept: application/json`** and the user’s Antara cookies.
+- Your authorize URL **must** include every **required** parameter (`client_id`, `redirect_uri`, `response_type=code`, `state`, `code_challenge`, `code_challenge_method=S256`). **`scope`** is optional; this demo sends an explicit list so consent is predictable.
+- If consent fails, ask users for the **error message**, **error code** (e.g. `INVALID_REDIRECT`, `PKCE_REQUIRED`), and **request reference** (UUID) from the page — correlate with **`requestId`** in worker logs.
+
+See [`docs/integration-checklist.md`](docs/integration-checklist.md) for the full integrator checklist.
+
 ## 3) Setup Steps
 
 1. Install dependencies:

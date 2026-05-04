@@ -7,8 +7,12 @@ import { getRequiredPublicEnv } from "@/lib/public-env";
 
 /**
  * Auth helpers: OAuth authorize URL construction and in-memory session after code exchange.
- * Antara GET /oauth/authorize expects: client_id, redirect_uri, response_type=code, state,
- * code_challenge, code_challenge_method=S256, optional scope.
+ *
+ * Flow: browser navigates here with Accept including text/html → API 302 to useantara.com/oauth/consent
+ * (same query string). Consent SPA then GETs this URL again with Accept: application/json + cookies.
+ *
+ * Required query params per Antara integrator checklist: client_id, redirect_uri, response_type=code,
+ * state, code_challenge, code_challenge_method=S256; scope optional (we send an explicit default).
  */
 
 let inMemorySession: AntaraSession | null = null;

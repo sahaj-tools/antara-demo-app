@@ -1,45 +1,67 @@
 # Antara login — demo app / integrator checklist
 
-Use this when wiring a public app (like `antara-demo-app`) to Antara’s API worker. It aligns with `useantara.com/worker` routes and the **Antara** repo doc `docs/integrators-antara-login-hosting.md` (hosting, consent UI, MIME/CSP).
+This document mirrors **`useantara.com/docs/demo-app-integration-checklist.md`** and expands it with implementation notes for this repo. See also **`integrators-antara-login-hosting.md`** in the `useantara.com` repo under `docs/` (hosting, consent UI, MIME/CSP).
+
+## Summary (Antara product checklist)
+
+1. Register the app; **client_id** = app UUID; **redirect URIs** = exact match.
+2. Use **PKCE** (`code_challenge` / `code_verifier`) on `/oauth/authorize` and `/oauth/token`.
+3. Use **`POST /oauth/token`** for OAuth codes — **not** `POST /auth/exchange-code` (portal magic links).
+4. OAuth access tokens are **`oit_`**; **`/app/v1/messages`** expects **`aat_`** (server app token) — see README for introspect vs messaging.
+
+## Consent screen URL (what this demo does)
+
+1. The demo sends the user’s browser to **`GET {NEXT_PUBLIC_API_BASE}/oauth/authorize?…`** with a normal navigation (`window.location`). The request **`Accept`** header includes **`text/html`**, so the worker returns **302** to **`https://useantara.com/oauth/consent`** with the **same query string** (`worker/src/handlers/oauth.ts`).
+2. The consent SPA then calls **`GET {API}/oauth/authorize?…`** again with **`Accept: application/json`** and the user’s Antara session cookies to load consent metadata.
+3. Your app **must** include every **required** query parameter in that first URL (see table). Missing or wrong values surface as errors on the consent page (“contact the app developer”).
+
+| Query param | Required | Notes |
+|-------------|----------|--------|
+| `client_id` | Yes | Same as `NEXT_PUBLIC_APP_ID` in this demo. |
+| `redirect_uri` | Yes | **Exact** registered URI (scheme, host, path, trailing slash). |
+| `response_type` | Yes | Must be `code`. |
+| `state` | Yes | Stored with PKCE verifier; verified on callback. |
+| `code_challenge` | Yes | PKCE S256 challenge. |
+| `code_challenge_method` | Yes | Must be `S256`. |
+| `scope` | Optional | This demo sends an explicit space-separated list for predictable consent; omitting is valid — Antara normalizes defaults. |
+
+### Troubleshooting (support)
+
+If users cannot complete consent, ask for the **error message**, **error code** (e.g. `INVALID_REDIRECT`, `PKCE_REQUIRED`), and **request reference** (UUID) from the Antara page — map **`requestId`** to worker logs.
 
 ## Registration (Antara admin / control plane)
 
 1. **App row** exists with status **active** and governance **approved** (worker rejects pending/suspended apps).
-2. **client_id** for OAuth is the app’s **UUID** (`client_id` query / body parameter).
-3. **Redirect URI(s)** include every environment you use; the worker validates **`validateRedirectUri` — exact string match** (scheme, host, port, path, trailing slash).
-4. For **private / invite-only** apps, the test user has an **invite** and permission policy allows connect (worker checks on POST `/oauth/authorize`).
+2. **client_id** for OAuth is the app’s **UUID**.
+3. **Redirect URI(s)** include every environment; **`validateRedirectUri`** is an **exact** string match.
+4. For **private / invite-only** apps, the test user has an **invite** and policy allows connect (POST `/oauth/authorize` checks).
 
-## Browser OAuth (PKCE)
+## Browser OAuth (PKCE) — this repo
 
-5. **GET `/oauth/authorize`** on the **API** host with:
-   - `client_id`, `redirect_uri`, `response_type=code`
-   - `state` (CSRF)
-   - `code_challenge`, `code_challenge_method=S256`
-   - optional `scope` (allowed tokens per worker allow-list)
-6. User completes consent on **`https://useantara.com/oauth/consent`** (redirect from authorize when `Accept: text/html`).
-7. **POST `/oauth/token`** with `grant_type=authorization_code`, `code`, `redirect_uri` (same as step 5), `client_id`, **`code_verifier`**.
-8. Do **not** send OAuth authorization codes to **`POST /auth/exchange-code`** — that endpoint is for **signed portal / magic-link** codes (`MAGIC_LINK_SECRET`), not OAuth.
+5. **`lib/auth.ts`** → **`buildOAuthAuthorizeUrl`** builds the query string; **`LoginButton`** generates PKCE + state and stores the verifier in **`sessionStorage`** (`lib/oauth-pending.ts`).
+6. **`DashboardClient`** validates **`state`**, exchanges with **`POST /oauth/token`** (`lib/antara.ts`).
+7. Do **not** send OAuth codes to **`POST /auth/exchange-code`**.
 
 ## Tokens
 
-9. OAuth code exchange returns an **OAuth identity token** prefix **`oit_`** (opaque, KV-backed).
-10. **`POST /app/v1/messages`** is implemented for **Bearer `aat_`** (app access token from DB) or capability tokens — **not** for `oit_`. Send messages from a **server** using `aat_` unless Antara documents otherwise.
-11. **`POST /auth/introspect`** accepts `oit_`, `uat_`, `aat_` for debugging and session validation.
+8. OAuth exchange returns **`oit_`** (opaque).
+9. **`POST /app/v1/messages`** is for **`aat_`** / cap tokens — not **`oit_`** from the browser OAuth flow.
+10. **`POST /auth/introspect`** accepts **`oit_`** for validation demos.
 
 ## Hosting / UX
 
-12. **`NEXT_PUBLIC_*`** point at the **API** base URL for fetch calls; consent UI is still on `useantara.com`.
-13. If the consent page fails to load JS, check MIME types and SPA routing on `useantara.com` (see integrators doc).
+11. **`NEXT_PUBLIC_*`** use the **API** origin for `fetch`; consent UI is on **`useantara.com`**.
+12. If consent scripts fail to load, check MIME / SPA routing on **`useantara.com`** (integrators doc).
 
 ## Verification
 
 | Step | Check |
 |------|--------|
 | Authorize | 302 to `…/oauth/consent?…` with same query string |
-| Callback | Your `redirect_uri` receives `code` and `state` |
+| Callback | `redirect_uri` receives `code` and `state` |
 | Token | `POST /oauth/token` returns `{ data: { accessToken, user, scopes } }` |
-| Introspect | `POST /auth/introspect` with `{ token }` returns `active: true` for `oit_` |
+| Introspect | `POST /auth/introspect` with `{ token }` → `active: true` for `oit_` |
 
 ---
 
-*Last updated: 2026-05-02 — aligned with Antara worker OAuth handler and messaging auth middleware.*
+*Last updated: 2026-05-03 — aligned with `useantara.com/docs/demo-app-integration-checklist.md` and Antara worker OAuth + consent SPA.*
