@@ -50,6 +50,50 @@ Antara is an identity and permissions platform. In this demo, Antara is the OAut
 
 See [`docs/integration-checklist.md`](docs/integration-checklist.md) for the full integrator checklist.
 
+## Phase 3 — Trust gates, staging `client_id`, and private apps
+
+New apps registered in Antara Admin often start **private**, **invite-only**, and **`approval_status: pending`**. OAuth **authorize** and token exchange succeed only after platform policy allows the app for that flow (approval, moderation, invites, caps). Do **not** assume every app row behaves like a shared catalog demo.
+
+| Situation | What to do |
+|-----------|------------|
+| Same `NEXT_PUBLIC_APP_ID` in local and prod | Avoid it. Use **one OAuth client UUID per deployment** (`localhost`, staging hostname, prod) so `NEXT_PUBLIC_REDIRECT_URI` stays an exact registered match everywhere. |
+| `401` / `403` / “app not allowed” on consent | Check **approval**, **moderation**, **invite-only**, and **private user cap** on the app; ensure the signed-in user is allowed to connect that client. See [`docs/integration-checklist.md`](docs/integration-checklist.md) (Phase 3). |
+| “Verified” / public rollout | Operators run **domain verification** in Admin (well-known file). Host **exact token** text at **`https://<your-domain>/.well-known/antara-verification.txt`**, then trigger **Verify** in app details — see **useantara.com** worker `admin-api-v1` domain-verification routes. |
+
+**Trust UX:** consent and documentation should treat **`unverified` / `private` / pending** differently from **`verified`** + **approved**. This demo documents behavior; production products should mirror the same labels.
+
+Template env without secrets: copy [`.env.example`](.env.example) to `.env.local`.
+
+## Phase 4 — Circle context & deep links
+
+Phase 4 circle wiring is demo-ready:
+
+- Add `?circle=<circle-uuid>` to the home URL (or paste a UUID in the login form) before clicking **Login with Antara**.
+- OAuth authorize includes that `circle` parameter; token responses may include `circleId` and `antara_circle_id` claims.
+- Dashboard checks:
+  - `POST /auth/introspect` with `oit_` (token becomes inactive if circle access/membership is revoked).
+  - `POST /app/v1/identity/lookup` with `Bearer oit_` (requires `identity.read`/`identify`).
+  - `GET /oauth/userinfo` and `GET /auth/me` support `oit_` with circle revalidation.
+
+Use this to validate delegated, user-scoped access without turning circle context into a standalone credential.
+
+## Phase 5 — Public catalog (optional)
+
+**Product Phase 5 is closed** on the platform side. Integrators **do not** need the public directory to ship OAuth.
+
+If you want to experiment with discovery: **`GET {API}/public/v1/apps`** (anonymous; pagination `limit` / `cursor`). Listing rules and **`trustBadge`** semantics: **`useantara.com/docs/phase-5-catalog-policy.md`**. Contract sketch: **`useantara.com/worker/openapi/public-v1.yaml`**. Same checklist table: [`docs/integration-checklist.md`](docs/integration-checklist.md).
+
+## Sec-4.1 — Sandbox vs production OAuth client
+
+This addresses **`useantara.com` `PRODUCT_PLAN.md`** security **Sec-4.1** (demo sandbox split).
+
+1. **Create two (or more) apps** in Antara Admin — e.g. **`demo-local`** with `http://localhost:3000/dashboard` and **`demo-prod`** with your public HTTPS callback only.
+2. **Never reuse** the production app’s `client_id` in local `.env.local` if that would force registering `localhost` on the same row as prod redirects (split registrations instead).
+3. **Build / deploy** with the env vars that match the target: `NEXT_PUBLIC_APP_ID`, `NEXT_PUBLIC_REDIRECT_URI`, and `NEXT_PUBLIC_API_BASE` (see [`.env.example`](.env.example)). The demo [injects public env at build time](#environment-variables-build-time-injection) — one client per built bundle is the supported model; use separate CI jobs or env files per client.
+4. **Smoke each environment** from the **`useantara.com`** repo: `ANTARA_SMOKE_CLIENT_ID=<uuid-for-this-env> ANTARA_SMOKE_REDIRECT_URI=<exact-uri-for-that-client> npm run smoke:oauth-authorize` against the intended API host.
+
+Mirror checklist: in the **`useantara.com`** repository, `docs/demo-app-integration-checklist.md` (Sec-4.1 section); in this repo, [`docs/integration-checklist.md`](docs/integration-checklist.md).
+
 ## 3) Setup Steps
 
 1. Install dependencies:
@@ -63,13 +107,15 @@ npm install
    - **Client id** — UUID, same value as `NEXT_PUBLIC_APP_ID`
    - **Redirect URI(s)** — exact match (scheme, host, path, no stray trailing slash)
 
-3. Create or update `.env.local`:
+3. Create or update `.env.local` (see [`.env.example`](.env.example)):
 
 ```bash
 NEXT_PUBLIC_API_BASE=https://api.useantara.com
 NEXT_PUBLIC_APP_ID=<your_app_uuid_client_id>
 NEXT_PUBLIC_REDIRECT_URI=http://localhost:3000/dashboard
 ```
+
+Use a **staging** UUID for non-production deployments when possible so production redirect URIs and trust posture stay isolated (Phase 3).
 
 4. Start the app:
 

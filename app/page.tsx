@@ -27,6 +27,17 @@ export default function Home() {
           users see an error there, capture the <strong>error code</strong> and <strong>request ID</strong>{" "}
           shown on the page for support.
         </p>
+        <p className="muted smallPrint">
+          Apps can be <strong>private</strong>, <strong>invite-only</strong>, or <strong>pending approval</strong>{" "}
+          (Phase 3 trust gates). Until the app is allowed for your test user, OAuth may fail — use a
+          staging <code>client_id</code>, register exact redirect URIs, and see the repo README{" "}
+          <em>Phase 3</em> section.
+        </p>
+        <p className="muted smallPrint">
+          Phase 4 circle context is supported: add <code>?circle=&lt;circle-uuid&gt;</code> to this
+          page or paste a circle UUID below before login. The dashboard demonstrates introspect and
+          identity lookup with <code>oit_</code> under that context.
+        </p>
         <LoginButton />
       </section>
     </main>

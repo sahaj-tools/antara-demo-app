@@ -1,7 +1,12 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { introspectToken, sendAppMessage, AntaraApiError } from "@/lib/antara";
+import {
+  introspectToken,
+  lookupIdentityWithOAuthToken,
+  sendAppMessage,
+  AntaraApiError,
+} from "@/lib/antara";
 
 /**
  * Demonstrates API calls after OAuth:
@@ -20,6 +25,8 @@ export const MessageForm = ({
   const [isIntrospecting, setIsIntrospecting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [introspectJson, setIntrospectJson] = useState<string | null>(null);
+  const [lookupJson, setLookupJson] = useState<string | null>(null);
+  const [isLookingUpIdentity, setIsLookingUpIdentity] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const onIntrospect = async () => {
@@ -27,6 +34,7 @@ export const MessageForm = ({
     setFeedback(null);
     setError(null);
     setIntrospectJson(null);
+    setLookupJson(null);
     try {
       const data = await introspectToken(accessToken);
       setIntrospectJson(JSON.stringify(data, null, 2));
@@ -35,6 +43,21 @@ export const MessageForm = ({
       setError(e instanceof Error ? e.message : "Introspection failed.");
     } finally {
       setIsIntrospecting(false);
+    }
+  };
+
+  const onIdentityLookup = async () => {
+    setIsLookingUpIdentity(true);
+    setFeedback(null);
+    setError(null);
+    try {
+      const data = await lookupIdentityWithOAuthToken(accessToken);
+      setLookupJson(JSON.stringify(data, null, 2));
+      setFeedback("Identity lookup succeeded with Bearer oit_.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Identity lookup failed.");
+    } finally {
+      setIsLookingUpIdentity(false);
     }
   };
 
@@ -91,6 +114,17 @@ export const MessageForm = ({
         {introspectJson && (
           <pre className="preBlock">{introspectJson}</pre>
         )}
+        <button
+          className="button secondary"
+          disabled={isLookingUpIdentity}
+          onClick={() => void onIdentityLookup()}
+          type="button"
+        >
+          {isLookingUpIdentity
+            ? "Calling identity lookup…"
+            : "Resolve identity (POST /app/v1/identity/lookup)"}
+        </button>
+        {lookupJson && <pre className="preBlock">{lookupJson}</pre>}
       </div>
 
       <h3>Send message (app API shape)</h3>

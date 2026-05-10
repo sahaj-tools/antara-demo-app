@@ -9,6 +9,7 @@ export type AntaraIdentity = {
   displayName: string;
   slug: string;
   trustLevel: string;
+  circleId?: string | null;
   /** Granted OAuth scopes (Antara canonical names). */
   permissions: string[];
 };
@@ -38,6 +39,7 @@ type TokenSuccessData = {
   expiresAt: number;
   expiresIn: number;
   scopes: string[];
+  circleId?: string | null;
   user: IdpTokenUser | null;
 };
 
@@ -83,6 +85,7 @@ function mapTokenToSession(data: TokenSuccessData): AntaraSession {
       displayName: u.displayName?.trim() || u.primarySlug,
       slug: u.primarySlug,
       trustLevel: u.trustLevel,
+      circleId: data.circleId ?? null,
       permissions: data.scopes ?? [],
     },
   };
@@ -132,6 +135,7 @@ export type IntrospectResult = {
   sessionType: string | null;
   audience: string | null;
   scopes: string[];
+  circleId?: string | null;
 };
 
 /**
@@ -151,6 +155,37 @@ export const introspectToken = async (token: string): Promise<IntrospectResult> 
   }
 
   const json = (await response.json()) as ApiEnvelope<IntrospectResult>;
+  return json.data;
+};
+
+type IdentityLookupData = {
+  slug: string;
+  displayAlias: string | null;
+  active: boolean;
+};
+
+export const lookupIdentityWithOAuthToken = async (
+  accessToken: string,
+  userId?: string,
+): Promise<IdentityLookupData> => {
+  const body = userId ? { userId } : {};
+  const response = await fetch(`${getApiBaseUrl()}/app/v1/identity/lookup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new AntaraApiError(await parseErrorMessage(response), response.status);
+  }
+
+  const json = (await response.json()) as ApiEnvelope<IdentityLookupData>;
+  if (!json.data?.slug) {
+    throw new AntaraApiError("Unexpected identity lookup response shape.", 500);
+  }
   return json.data;
 };
 

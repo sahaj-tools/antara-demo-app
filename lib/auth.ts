@@ -23,9 +23,10 @@ const DEFAULT_OAUTH_SCOPE = "identity.read messages.send profile.basic";
 export type AuthorizeParams = {
   state: string;
   codeChallenge: string;
+  circleId?: string;
 };
 
-export const buildOAuthAuthorizeUrl = ({ state, codeChallenge }: AuthorizeParams) => {
+export const buildOAuthAuthorizeUrl = ({ state, codeChallenge, circleId }: AuthorizeParams) => {
   const apiBase = getRequiredPublicEnv("NEXT_PUBLIC_API_BASE").replace(/\/$/, "");
   const clientId = getRequiredPublicEnv("NEXT_PUBLIC_APP_ID");
   const redirectUri = getRequiredPublicEnv("NEXT_PUBLIC_REDIRECT_URI");
@@ -39,6 +40,10 @@ export const buildOAuthAuthorizeUrl = ({ state, codeChallenge }: AuthorizeParams
     code_challenge_method: "S256",
     scope: DEFAULT_OAUTH_SCOPE,
   });
+  const circle = circleId?.trim() ?? "";
+  if (circle) {
+    params.set("circle", circle);
+  }
 
   return `${apiBase}/oauth/authorize?${params.toString()}`;
 };

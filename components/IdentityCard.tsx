@@ -27,6 +27,10 @@ export const IdentityCard = ({ identity }: { identity: AntaraIdentity }) => {
           <dt>Trust level</dt>
           <dd>{identity.trustLevel}</dd>
         </div>
+        <div>
+          <dt>Circle context</dt>
+          <dd>{identity.circleId?.trim() ? identity.circleId : "none"}</dd>
+        </div>
       </dl>
 
       <h3>Permissions granted</h3>
