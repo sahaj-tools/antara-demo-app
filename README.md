@@ -50,6 +50,8 @@ Antara is an identity and permissions platform. In this demo, Antara is the OAut
 
 See [`docs/integration-checklist.md`](docs/integration-checklist.md) for the full integrator checklist.
 
+**AI / coding agents:** a generic, stack-agnostic prompt (separate module, OAuth + PKCE, token pitfalls) lives on **[useantara.com/developers](https://useantara.com/developers)** — expand *Prompt for a coding assistant (any tool)* and use **Copy prompt**. Maintainer-only Cursor snippets for the consent site and API worker remain in [`docs/cursor-prompt-antara-oauth-frontend.md`](docs/cursor-prompt-antara-oauth-frontend.md).
+
 ## Phase 3 — Trust gates, staging `client_id`, and private apps
 
 New apps registered in Antara Admin often start **private**, **invite-only**, and **`approval_status: pending`**. OAuth **authorize** and token exchange succeed only after platform policy allows the app for that flow (approval, moderation, invites, caps). Do **not** assume every app row behaves like a shared catalog demo.

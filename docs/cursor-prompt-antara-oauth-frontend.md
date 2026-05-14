@@ -1,11 +1,16 @@
 # Cursor prompts: Antara OAuth + API alignment
 
-This repo contains two complementary prompts:
+## §0 — Greenfield apps (any stack, any AI tool)
 
-1. **§1 — useantara.com (consent SPA + static hosting)**
-  Fix MIME types, asset paths, Cloudflare `_routes.json`, CSP on the **marketing/consent** site.
-2. **§2 — API worker (backend) — verification & gaps**
-  Use when changing `useantara.com/worker` OAuth or app routes so integrator apps (e.g. `antara-demo-app`) stay consistent.
+For **third-party applications** (not the Antara web portal or API worker), use the **stack-agnostic** copy-paste prompt on the public site:
+
+- Open **[Developers](https://useantara.com/developers)** on `useantara.com`, expand **“Prompt for a coding assistant (any tool) — add Antara as a separate module”**, and copy the full block (one-click **Copy prompt** is available there).
+
+That prompt is meant for Cursor, Claude, Copilot, ChatGPT, or any similar coding agent when adding OAuth + PKCE and REST calls into **your** repo. It complements—but does not replace—[`integration-checklist.md`](integration-checklist.md) and this repo’s `lib/*.ts` reference code.
+
+---
+
+The sections **§1** and **§2** below are maintainer prompts for **`useantara.com`** (consent SPA / Pages) and **`useantara.com/worker`**. They are not substitutes for the generic integrator prompt in §0.
 
 ---
 
